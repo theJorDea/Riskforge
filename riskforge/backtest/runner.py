@@ -38,5 +38,17 @@ def rolling_var_backtest(
     Note: this is a plain loop over t — keep it simple and readable first,
     optimize later only if needed.
     """
-    # TODO: implement
-    raise NotImplementedError
+    if window < 30:
+        raise ValueError("window too short for a meaningful estimate")
+    if len(returns) <= window:
+        raise ValueError(f"need more than {window} observations, got {len(returns)}")
+
+    records = []
+    for t in range(window, len(returns)):
+        train = returns.iloc[t - window : t]
+        var_t = var_estimator(train)
+        r_t = float(returns.iloc[t])
+        records.append(
+            {"date": returns.index[t], "return": r_t, "var": var_t, "breach": r_t < -var_t}
+        )
+    return pd.DataFrame(records).set_index("date")

@@ -20,11 +20,20 @@ def historical_var(returns: pd.Series, alpha: float = 0.99) -> float:
 
     Example: alpha=0.99 -> the 1% empirical quantile of returns, negated.
     """
-    # TODO: implement (validate 0 < alpha < 1; use returns.quantile(1 - alpha))
-    raise NotImplementedError
+    _validate_alpha(alpha)
+    return float(-returns.quantile(1.0 - alpha))
 
 
 def historical_es(returns: pd.Series, alpha: float = 0.99) -> float:
     """Historical Expected Shortfall: mean loss beyond the VaR threshold."""
-    # TODO: implement (mean of returns below the (1-alpha) quantile, negated)
-    raise NotImplementedError
+    _validate_alpha(alpha)
+    threshold = returns.quantile(1.0 - alpha)
+    tail = returns[returns <= threshold]
+    if tail.empty:
+        raise ValueError("no observations in the tail; need more data or lower alpha")
+    return float(-tail.mean())
+
+
+def _validate_alpha(alpha: float) -> None:
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}")

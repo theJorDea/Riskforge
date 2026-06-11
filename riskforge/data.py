@@ -35,12 +35,23 @@ def load_prices(
     -------
     DataFrame indexed by date, one column per ticker, NaNs dropped.
     """
-    # TODO: implement
-    #  1. build cache key from sorted tickers + start + end
-    #  2. if cached parquet exists and use_cache -> read and return
-    #  3. yf.download(...)["Adj Close"], handle single-ticker case (Series -> DataFrame)
-    #  4. dropna(how="any"), save to cache, return
-    raise NotImplementedError
+    key = "_".join(sorted(t.upper() for t in tickers)) + f"_{start}_{end or 'latest'}"
+    cache_file = CACHE_DIR / f"prices_{key}.parquet"
+
+    if use_cache and cache_file.exists():
+        return pd.read_parquet(cache_file)
+
+    import yfinance as yf
+
+    raw = yf.download(tickers, start=start, end=end, auto_adjust=True, progress=False)["Close"]
+    if isinstance(raw, pd.Series):  # single ticker -> Series
+        raw = raw.to_frame(tickers[0])
+    prices = raw.dropna(how="any").sort_index()
+
+    if use_cache:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        prices.to_parquet(cache_file)
+    return prices
 
 
 def log_returns(prices: pd.DataFrame) -> pd.DataFrame:

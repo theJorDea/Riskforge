@@ -20,7 +20,6 @@ def normal_returns() -> pd.Series:
     return pd.Series(rng.normal(0.0, SIGMA, size=100_000))
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing historical_var")
 def test_historical_var_matches_analytical(normal_returns):
     from riskforge.var import historical_var
 
@@ -28,14 +27,12 @@ def test_historical_var_matches_analytical(normal_returns):
     assert var == pytest.approx(ANALYTICAL_VAR, rel=0.05)
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing historical_es")
 def test_es_not_less_than_var(normal_returns):
     from riskforge.var import historical_es, historical_var
 
     assert historical_es(normal_returns, ALPHA) >= historical_var(normal_returns, ALPHA)
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing parametric_var")
 def test_parametric_normal_var(normal_returns):
     from riskforge.var import parametric_var
 
@@ -43,7 +40,6 @@ def test_parametric_normal_var(normal_returns):
     assert var == pytest.approx(ANALYTICAL_VAR, rel=0.05)
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing monte_carlo_var")
 def test_monte_carlo_single_asset(normal_returns):
     from riskforge.var import monte_carlo_var
 

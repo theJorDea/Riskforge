@@ -1,84 +1,138 @@
 # Riskforge
 
-Market risk toolkit built from first principles: **Value-at-Risk / Expected Shortfall estimation, volatility modeling, and statistical backtesting** — implemented by hand on the Python data stack (NumPy / pandas / SciPy) and validated against reference implementations.
+Инструментарий рыночного риска, написанный с нуля: **оценка Value-at-Risk / Expected Shortfall, моделирование волатильности и статистический бэктестинг** — руками на Python-стеке (NumPy / pandas / SciPy), с проверкой против эталонных реализаций.
 
-The goal of this project is not to wrap libraries, but to demonstrate the mathematics behind market risk models: where they come from, what assumptions they make, and how to verify that they actually work.
+Цель проекта — не обернуть библиотеки, а показать математику риск-моделей: откуда они берутся, какие предположения делают и как проверить, что они реально работают.
 
-> Status: 🚧 work in progress. Module skeletons, tests, and CI are in place; implementations are being filled in module by module (see roadmap below).
+## Что внутри
 
-## What's inside
-
-| Area | Methods |
+| Область | Методы |
 |---|---|
-| **VaR / ES** | Historical (empirical quantile) · Parametric (Normal & Student-t, MLE) · Monte Carlo (multivariate normal scenarios) |
-| **Volatility** | EWMA / RiskMetrics (λ = 0.94, hand-written recursion) · GARCH(1,1) with own MLE on `scipy.optimize`, cross-checked against the `arch` package |
-| **Backtesting** | Rolling out-of-sample VaR backtest · Kupiec POF test · Christoffersen independence test |
-| **Research notebooks** | EDA of stylized facts (fat tails, volatility clustering) · model comparison with honest conclusions |
+| **VaR / ES** | Исторический (эмпирический квантиль) · Параметрический (Normal и Student-t, MLE) · Monte Carlo (сценарии из многомерного нормального) |
+| **Волатильность** | EWMA / RiskMetrics (λ = 0.94, рекурсия руками) · GARCH(1,1) с собственной MLE на `scipy.optimize`, сверенной с пакетом `arch` |
+| **Бэктестинг** | Rolling out-of-sample бэктест VaR · POF-тест Купика · тест независимости Кристофферсена |
+| **Ноутбуки** | EDA стилизованных фактов (жирные хвосты, кластеризация волатильности) · сравнение моделей с честными выводами |
 
-## Project structure
+## Структура проекта
 
 ```
 riskforge/
-├── riskforge/                  # the package itself
-│   ├── data.py                 # price loading (yfinance) + parquet cache, log returns
-│   ├── portfolio.py            # portfolio returns w'r, covariance estimation
+├── riskforge/                  # сам пакет
+│   ├── data.py                 # загрузка цен (yfinance) + parquet-кэш, лог-доходности
+│   ├── portfolio.py            # доходность портфеля w'r, ковариация
 │   ├── var/
-│   │   ├── historical.py       # VaR/ES from the empirical quantile of past returns
-│   │   ├── parametric.py       # Normal and Student-t VaR (parameters via MLE)
-│   │   └── monte_carlo.py      # scenario simulation from fitted N(mu, Sigma)
+│   │   ├── historical.py       # VaR/ES из эмпирического квантиля прошлых доходностей
+│   │   ├── parametric.py       # Normal и Student-t VaR (параметры через MLE)
+│   │   └── monte_carlo.py      # симуляция сценариев из подогнанного N(mu, Sigma)
 │   ├── volatility/
-│   │   ├── ewma.py             # RiskMetrics recursion, implemented by hand on NumPy
-│   │   └── garch.py            # GARCH(1,1): own log-likelihood + scipy MLE,
-│   │                           #   verified against the `arch` package in tests
+│   │   ├── ewma.py             # рекурсия RiskMetrics, написана руками на NumPy
+│   │   └── garch.py            # GARCH(1,1): своё правдоподобие + MLE на scipy,
+│   │                           #   в тестах сверяется с пакетом `arch`
 │   ├── backtest/
-│   │   ├── kupiec.py           # POF test: is the breach COUNT consistent with 1-alpha?
-│   │   ├── christoffersen.py   # independence test: do breaches CLUSTER in time?
-│   │   └── runner.py           # rolling-window out-of-sample backtest engine
-│   └── plotting.py             # returns vs VaR boundary, QQ-plots, volatility overlays
-├── notebooks/
-│   ├── 01_eda.ipynb            # stylized facts: fat tails, clustering, QQ-plots
-│   ├── 02_var_comparison.ipynb # 3 VaR methods on one portfolio + backtest verdicts
-│   └── 03_vol_forecast.ipynb   # EWMA vs GARCH forecasting comparison
-├── tests/                      # math validated on synthetic data with known answers
-├── data/                       # local price cache (gitignored)
-└── .github/workflows/ci.yml    # ruff + pytest on every push (Python 3.10 / 3.12)
+│   │   ├── kupiec.py           # POF-тест: согласуется ли ЧИСЛО пробитий с 1-alpha?
+│   │   ├── christoffersen.py   # тест независимости: КЛАСТЕРЯТСЯ ли пробития во времени?
+│   │   └── runner.py           # движок rolling-window out-of-sample бэктеста
+│   └── plotting.py             # доходности vs граница VaR, QQ-plot, волатильность
+├── notebooks/                  # исследовательские отчёты (см. roadmap)
+├── tests/                      # математика проверяется на синтетике с известным ответом
+├── data/                       # локальный кэш цен (в .gitignore)
+└── .github/workflows/ci.yml    # ruff + pytest на каждый push (Python 3.10 / 3.12)
 ```
 
-A detailed module-by-module description with formulas and conventions lives in [`docs/STRUCTURE.md`](docs/STRUCTURE.md).
+Подробное описание модулей с выводом формул — в [`docs/STRUCTURE.md`](docs/STRUCTURE.md).
 
-## Conventions
+## Конвенции
 
-* `alpha` is the confidence level (e.g. `0.99`); expected breach rate is `1 - alpha`.
-* **VaR and ES are reported as positive numbers** (loss magnitudes). `ES >= VaR` always.
-* Returns are daily log returns `r_t = ln(P_t / P_{t-1})`.
-* Every estimator is a pure function: same inputs → same outputs (Monte Carlo takes an explicit `seed`).
+* `alpha` — уровень доверия (например `0.99`); ожидаемая частота пробитий `1 - alpha`.
+* **VaR и ES — положительные числа** (величины потерь). Всегда `ES >= VaR`.
+* Доходности — дневные лог-доходности `r_t = ln(P_t / P_{t-1})`: аддитивны по времени и для малых движений ≈ простым доходностям.
+* Все оценщики — чистые функции: одинаковый вход → одинаковый выход (Monte Carlo принимает явный `seed`).
 
-## Testing philosophy
+## Как реализовано (по модулям)
 
-The math is validated on synthetic data where the exact answer is known:
+### VaR / ES — три подхода к одному вопросу
 
-* On `N(0, σ²)` samples, historical/parametric/MC VaR must converge to the analytical quantile `-σ·z₁₋α`.
-* The hand-written GARCH MLE must recover the parameters of a simulated GARCH(1,1) process **and** agree with the `arch` package on the same data.
-* Kupiec must *not* reject a breach series generated with the true rate, and must strongly reject a miscalibrated one.
+**Исторический** (`var/historical.py`). Никаких предположений о распределении: будущее моделируется эмпирическим распределением прошлых доходностей.
+
+```
+VaR_α = -Quantile_{1-α}(r)
+ES_α  = -E[ r | r ≤ Quantile_{1-α}(r) ]   (средняя потеря за порогом VaR)
+```
+
+**Параметрический** (`var/parametric.py`). Подгоняем распределение и берём аналитический квантиль:
+
+* Normal: `VaR_α = -(μ + σ·z_{1-α})`, где `μ, σ` — выборочные среднее и std, `z = Φ⁻¹`.
+* Student-t: степени свободы `ν` оцениваются через MLE (`scipy.stats.t.fit`), квантиль — `t_{1-α,ν}` с масштабом подгонки. Зачем: у дневных доходностей жирные хвосты (эксцесс ≫ 3), нормальная модель систематически занижает хвостовой риск.
+
+**Monte Carlo** (`var/monte_carlo.py`). Для портфеля из N активов:
+1. По истории оцениваются вектор средних `μ (N,)` и ковариация `Σ (N×N)`.
+2. Генерируются `n_sims` сценариев `r ~ N(μ, Σ)` (`default_rng(seed).multivariate_normal` — воспроизводимо).
+3. P&L сценария `p = r·w`, дальше `VaR_α = -quantile(p, 1-α)`.
+
+### Волатильность
+
+**EWMA** (`volatility/ewma.py`) — рекурсия RiskMetrics, написана руками (в этом смысл модуля):
+
+```
+σ_t² = λ·σ_{t-1}² + (1-λ)·r_{t-1}²,   λ = 0.94 (дневная классика)
+```
+
+Инициализация `σ_0²` — выборочная дисперсия первых ~30 точек (выбор влияет только на первые десятки наблюдений). Это частный случай GARCH(1,1) с `ω=0, α=1-λ, β=λ` — IGARCH без возврата к среднему.
+
+**GARCH(1,1)** (`volatility/garch.py`) — собственная оценка максимального правдоподобия:
+
+```
+r_t = σ_t·ε_t,  ε_t ~ N(0,1)
+σ_t² = ω + α·r_{t-1}² + β·σ_{t-1}²,   ω>0, α,β≥0, α+β<1
+```
+
+Гауссово лог-правдоподобие `L = -½·Σ[ln(2π) + ln(σ_t²) + r_t²/σ_t²]` максимизируется через `scipy.optimize.minimize` (L-BFGS-B с границами; при нарушении стационарности `α+β ≥ 1` objective возвращает `+inf`). Прогноз на h шагов — возврат к безусловной дисперсии `σ² = ω/(1-α-β)` со скоростью `(α+β)^h`. Корректность доказывается тестом: на симулированном GARCH-процессе своя MLE восстанавливает истинные параметры **и** совпадает с оценками пакета `arch`.
+
+### Бэктестинг — проверяем, что модель не врёт
+
+**Rolling-бэктест** (`backtest/runner.py`): для каждого дня t берётся скользящее окно из 250 прошлых доходностей, по нему оценивается VaR, пробитие фиксируется если `r_t < -VaR_t`. Выход — DataFrame `(return, var, breach)`.
+
+**Тест Купика** (`backtest/kupiec.py`) отвечает на вопрос: согласуется ли наблюдаемое число пробитий `x` за `T` дней с заявленным `p = 1-α`? Статистика отношения правдоподобий
+
+```
+LR_pof = -2·[ ln L(p) - ln L(x/T) ] ~ χ²(1) при H0
+```
+
+считается в лог-пространстве (иначе underflow при больших T), члены `0·ln(0)` корректно обнуляются (краевые случаи `x=0` и `x=T`).
+
+**Тест Кристофферсена** (`backtest/christoffersen.py`) проверяет то, что Купик не видит: не кластеризуются ли пробития. Пробития моделируются марковской цепью 1-го порядка; H0: `P(пробитие | вчера пробитие) = P(пробитие | вчера нет)`. Кластеры пробитий означают, что модель медленно реагирует на смену волатильного режима — даже при правильной общей частоте.
+
+## Философия тестирования
+
+Математика проверяется на синтетических данных, где точный ответ известен заранее:
+
+* На выборках из `N(0, σ²)` исторический/параметрический/MC VaR сходятся к аналитическому квантилю `-σ·z_{1-α}`.
+* Собственная GARCH MLE восстанавливает параметры симулированного GARCH(1,1)-процесса **и** совпадает с пакетом `arch` на тех же данных.
+* Купик не отвергает серию пробитий, сгенерированную с истинной частотой 1%, и жёстко отвергает мискалиброванную (5%); Кристофферсен ловит искусственный кластер пробитий.
+* End-to-end: rolling-бэктест исторического VaR на i.i.d. нормальных данных проходит тест Купика.
 
 ```bash
 pip install -e ".[dev]"
-pytest
+pytest          # 13 тестов
+ruff check .    # линтер
 ```
 
 ## Roadmap
 
-- [x] Package skeleton, module contracts, test suite design, CI
-- [ ] `data` + `portfolio` + EDA notebook (stylized facts)
-- [ ] Historical & parametric VaR/ES + tests
-- [ ] Monte Carlo VaR + tests
-- [ ] Rolling backtest + Kupiec/Christoffersen + comparison notebook
-- [ ] EWMA + GARCH(1,1) own MLE + `arch` cross-check + forecast notebook
-- [ ] Model limitations write-up (when and why each method fails)
-- [ ] (Optional) Student-t Monte Carlo; LSTM volatility forecast vs GARCH baseline (PyTorch)
+- [x] Скелет пакета, контракты модулей, дизайн тестов, CI
+- [x] `data` + `portfolio`
+- [x] Исторический и параметрический VaR/ES + тесты
+- [x] Monte Carlo VaR + тесты
+- [x] Rolling-бэктест + Купик/Кристофферсен + тесты
+- [x] EWMA + GARCH(1,1) своя MLE + сверка с `arch`
+- [ ] Ноутбук 01: EDA стилизованных фактов (жирные хвосты, кластеризация)
+- [ ] Ноутбук 02: сравнение трёх методов VaR на реальном портфеле + вердикты бэктестов
+- [ ] Ноутбук 03: EWMA vs GARCH в прогнозе волатильности
+- [ ] Выводы и ограничения моделей по результатам на реальных данных
+- [ ] (Опционально) Student-t Monte Carlo; LSTM-прогноз волатильности vs GARCH-бейзлайн (PyTorch)
 
-## Known model limitations (to be expanded with results)
+## Известные ограничения моделей
 
-* Historical VaR is blind to anything not in the estimation window and reacts slowly to regime changes.
-* Normal parametric VaR underestimates tail risk on fat-tailed daily returns.
-* All methods here assume the portfolio is static and liquid; no intraday, funding, or liquidity risk.
+* Исторический VaR слеп ко всему, чего не было в окне оценки, и медленно реагирует на смену режима.
+* Нормальный параметрический VaR занижает хвостовой риск на жирнохвостых дневных доходностях.
+* Все методы предполагают статичный и ликвидный портфель; внутридневной, фондированный и ликвидный риск не моделируются.

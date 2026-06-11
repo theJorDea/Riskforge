@@ -29,12 +29,17 @@ def portfolio_returns(returns: pd.DataFrame, weights: np.ndarray | None = None) 
     but for daily horizons the approximation error is negligible. Document
     this assumption in the README.
     """
-    # TODO: implement (validate weights length, default to equal weights,
-    #       check weights sum ~ 1.0, return returns @ weights as a Series)
-    raise NotImplementedError
+    n_assets = returns.shape[1]
+    if weights is None:
+        weights = np.full(n_assets, 1.0 / n_assets)
+    weights = np.asarray(weights, dtype=float)
+    if weights.shape != (n_assets,):
+        raise ValueError(f"weights must have shape ({n_assets},), got {weights.shape}")
+    if not np.isclose(weights.sum(), 1.0, atol=1e-8):
+        raise ValueError(f"weights must sum to 1, got {weights.sum():.6f}")
+    return pd.Series(returns.to_numpy() @ weights, index=returns.index, name="portfolio")
 
 
 def sample_covariance(returns: pd.DataFrame) -> pd.DataFrame:
     """Sample covariance matrix of asset returns (pandas ``.cov()``)."""
-    # TODO: implement
-    raise NotImplementedError
+    return returns.cov()

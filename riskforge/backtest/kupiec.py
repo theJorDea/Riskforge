@@ -43,5 +43,34 @@ def kupiec_test(breaches: pd.Series | list[bool], alpha: float = 0.99) -> Kupiec
     Edge cases to handle: x = 0 and x = T (the LR formula has 0*ln(0) terms —
     treat them as 0).
     """
-    # TODO: implement with scipy.stats.chi2.sf(lr_stat, df=1)
-    raise NotImplementedError
+    import numpy as np
+    from scipy import stats
+
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+
+    b = np.asarray(breaches, dtype=bool)
+    t = len(b)
+    if t == 0:
+        raise ValueError("empty breach series")
+    x = int(b.sum())
+    p = 1.0 - alpha
+
+    def _xlogy(k: float, q: float) -> float:
+        """k * ln(q) with the convention 0 * ln(0) = 0."""
+        return 0.0 if k == 0 else k * np.log(q)
+
+    loglik_h0 = _xlogy(t - x, 1.0 - p) + _xlogy(x, p)
+    pi_hat = x / t
+    loglik_h1 = _xlogy(t - x, 1.0 - pi_hat) + _xlogy(x, pi_hat)
+    lr = -2.0 * (loglik_h0 - loglik_h1)
+    p_value = float(stats.chi2.sf(lr, df=1))
+
+    return KupiecResult(
+        n_obs=t,
+        n_breaches=x,
+        expected_breaches=t * p,
+        lr_stat=float(lr),
+        p_value=p_value,
+        reject_h0=p_value < 0.05,
+    )

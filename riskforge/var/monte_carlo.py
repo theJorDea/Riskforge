@@ -42,5 +42,16 @@ def monte_carlo_var(
     -------
     Positive VaR estimate.
     """
-    # TODO: implement using np.random.default_rng(seed).multivariate_normal
-    raise NotImplementedError
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+    weights = np.asarray(weights, dtype=float)
+    if weights.shape != (returns.shape[1],):
+        raise ValueError("weights length must match the number of assets")
+
+    mu = returns.mean().to_numpy()
+    sigma = returns.cov().to_numpy()
+
+    rng = np.random.default_rng(seed)
+    scenarios = rng.multivariate_normal(mu, sigma, size=n_sims)  # (n_sims, N)
+    pnl = scenarios @ weights
+    return float(-np.quantile(pnl, 1.0 - alpha))

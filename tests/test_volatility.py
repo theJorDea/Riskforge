@@ -19,7 +19,6 @@ def garch_returns() -> pd.Series:
     return pd.Series(r)
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing ewma_volatility")
 def test_ewma_constant_series():
     """On constant-variance i.i.d. data EWMA must hover near the true sigma."""
     from riskforge.volatility import ewma_volatility
@@ -30,7 +29,6 @@ def test_ewma_constant_series():
     assert vol.iloc[-500:].mean() == pytest.approx(0.01, rel=0.1)
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing garch_fit")
 def test_garch_recovers_true_params(garch_returns):
     """Own MLE should recover simulated parameters (loose tolerance)."""
     from riskforge.volatility import garch_fit
@@ -41,7 +39,6 @@ def test_garch_recovers_true_params(garch_returns):
     assert params.persistence < 1.0
 
 
-@pytest.mark.skip(reason="TODO: enable after implementing garch_fit")
 def test_garch_matches_arch_package(garch_returns):
     """Cross-check own MLE against the reference `arch` implementation."""
     from arch import arch_model

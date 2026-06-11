@@ -29,9 +29,16 @@ def parametric_var(
 
     Returns positive VaR.
     """
-    # TODO: implement
-    #  normal: mu, sigma = returns.mean(), returns.std(ddof=1)
-    #          var = -(mu + sigma * norm.ppf(1 - alpha))
-    #  t:      nu, loc, scale = t.fit(returns)
-    #          var = -(loc + scale * t.ppf(1 - alpha, nu))
-    raise NotImplementedError
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+
+    from scipy import stats
+
+    if dist == "normal":
+        mu = float(returns.mean())
+        sigma = float(returns.std(ddof=1))
+        return -(mu + sigma * stats.norm.ppf(1.0 - alpha))
+    if dist == "t":
+        nu, loc, scale = stats.t.fit(returns.to_numpy())
+        return -(loc + scale * stats.t.ppf(1.0 - alpha, nu))
+    raise ValueError(f"dist must be 'normal' or 't', got {dist!r}")
