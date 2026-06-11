@@ -28,6 +28,8 @@ def monte_carlo_var(
     alpha: float = 0.99,
     n_sims: int = 100_000,
     seed: int | None = 42,
+    dist: str = "normal",
+    df: float | None = None,
 ) -> float:
     """Monte Carlo VaR for a portfolio of assets.
 
@@ -37,6 +39,9 @@ def monte_carlo_var(
     weights : portfolio weights (N,).
     n_sims  : number of simulated scenarios.
     seed    : RNG seed for reproducibility (important for tests!).
+    dist    : "normal" or "t" (multivariate Student-t with joint fat tails).
+    df      : degrees of freedom for dist="t". If None, estimated by fitting
+              a univariate Student-t to portfolio returns (simple, robust proxy).
 
     Returns
     -------
@@ -52,6 +57,23 @@ def monte_carlo_var(
     sigma = returns.cov().to_numpy()
 
     rng = np.random.default_rng(seed)
-    scenarios = rng.multivariate_normal(mu, sigma, size=n_sims)  # (n_sims, N)
+    if dist == "normal":
+        scenarios = rng.multivariate_normal(mu, sigma, size=n_sims)  # (n_sims, N)
+    elif dist == "t":
+        if df is None:
+            from scipy import stats
+
+            df = float(stats.t.fit(returns.to_numpy() @ weights)[0])
+        if df <= 2:
+            raise ValueError(f"df must be > 2 for finite covariance, got {df:.2f}")
+        # Multivariate t as a normal mixture: r = mu + Z / sqrt(W / df),
+        # Z ~ N(0, Sigma_z), W ~ chi2(df). Scale Sigma_z so that the
+        # resulting covariance equals the sample Sigma: Cov = Sigma_z * df/(df-2).
+        sigma_z = sigma * (df - 2.0) / df
+        z = rng.multivariate_normal(np.zeros_like(mu), sigma_z, size=n_sims)
+        w_mix = rng.chisquare(df, size=n_sims) / df
+        scenarios = mu + z / np.sqrt(w_mix)[:, None]
+    else:
+        raise ValueError(f"dist must be 'normal' or 't', got {dist!r}")
     pnl = scenarios @ weights
     return float(-np.quantile(pnl, 1.0 - alpha))

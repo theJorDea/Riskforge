@@ -48,6 +48,19 @@ def test_monte_carlo_single_asset(normal_returns):
     assert var == pytest.approx(ANALYTICAL_VAR, rel=0.05)
 
 
+def test_monte_carlo_student_t(normal_returns):
+    """t-MC with huge df ~ normal MC; with small df the tail is fatter."""
+    from riskforge.var import monte_carlo_var
+
+    df_ = normal_returns.to_frame("X")
+    w = np.array([1.0])
+    var_norm = monte_carlo_var(df_, w, alpha=ALPHA, seed=1, dist="normal")
+    var_t_inf = monte_carlo_var(df_, w, alpha=ALPHA, seed=1, dist="t", df=1000)
+    var_t_fat = monte_carlo_var(df_, w, alpha=ALPHA, seed=1, dist="t", df=4)
+    assert var_t_inf == pytest.approx(var_norm, rel=0.05)
+    assert var_t_fat > var_norm * 1.08
+
+
 def test_package_imports():
     """Smoke test: package is importable (keeps CI green from day one)."""
     import riskforge
