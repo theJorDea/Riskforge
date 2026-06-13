@@ -66,3 +66,58 @@ def test_package_imports():
     import riskforge
 
     assert riskforge.__version__
+
+
+def _simulate_garch(n, innovation, rng, df=None):
+    """GARCH(1,1) path with either normal or standardized-t innovations."""
+    omega, alpha, beta = 1e-6, 0.08, 0.90
+    sigma2 = omega / (1 - alpha - beta)
+    r = np.empty(n)
+    for t in range(n):
+        if innovation == "normal":
+            eps = rng.standard_normal()
+        else:  # unit-variance standardized t
+            eps = rng.standard_t(df) * np.sqrt((df - 2.0) / df)
+        r[t] = np.sqrt(sigma2) * eps
+        sigma2 = omega + alpha * r[t] ** 2 + beta * sigma2
+    return pd.Series(r)
+
+
+def test_garch_t_var_positive():
+    """garch_t_var returns a positive next-day VaR."""
+    from riskforge.var import garch_t_var
+
+    r = _simulate_garch(3000, "normal", np.random.default_rng(0))
+    assert garch_t_var(r, alpha=0.99) > 0
+
+
+def test_garch_t_var_fat_tail_exceeds_gaussian_quantile():
+    """With fat-tailed residuals the t-quantile VaR must exceed the Gaussian
+    quantile applied to the *same* GARCH sigma forecast."""
+    from scipy.stats import norm
+
+    from riskforge.var import garch_t_var
+    from riskforge.volatility import garch_fit, garch_forecast
+
+    r = _simulate_garch(4000, "t", np.random.default_rng(1), df=4)
+    params = garch_fit(r)
+    sigma_next = np.sqrt(garch_forecast(r, params))
+    var_gauss = -(r.mean() + sigma_next * norm.ppf(0.01))
+    var_t = garch_t_var(r, alpha=0.99, params=params)
+    assert var_t > var_gauss
+
+
+def test_garch_t_var_matches_gaussian_on_normal_residuals():
+    """When residuals are Gaussian, the fitted t has large nu, so the t-quantile
+    VaR collapses back onto the Gaussian-quantile VaR."""
+    from scipy.stats import norm
+
+    from riskforge.var import garch_t_var
+    from riskforge.volatility import garch_fit, garch_forecast
+
+    r = _simulate_garch(6000, "normal", np.random.default_rng(2))
+    params = garch_fit(r)
+    sigma_next = np.sqrt(garch_forecast(r, params))
+    var_gauss = -(r.mean() + sigma_next * norm.ppf(0.01))
+    var_t = garch_t_var(r, alpha=0.99, params=params)
+    assert var_t == pytest.approx(var_gauss, rel=0.15)
